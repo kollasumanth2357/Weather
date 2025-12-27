@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Enhanced Weather App</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <div class="toggle-container">
+    <button id="themeToggle">🌙</button>
+  </div>
+
+  <div class="card">
+    <div class="search">
+      <input type="text" placeholder="Enter city name" spellcheck="false" />
+      <button><img src="images/search.png" alt="Search Icon" /></button>
+    </div>
+    <div class="error"><p>Invalid city name</p></div>
+    <div class="weather">
+      <img src="images/rain.png" class="weather-icon" alt="Weather Icon" />
+      <h1 class="temp">22°C</h1>
+      <h2 class="city">New York</h2>
+      <div class="details">
+        <div class="col">
+          <img src="images/humidity.png" alt="Humidity" />
+          <div>
+            <p class="humidity">50%</p>
+            <p>Humidity</p>
+          </div>
+        </div>
+        <div class="col">
+          <img src="images/wind.png" alt="Wind" />
+          <div>
+            <p class="wind">15 km/h</p>
+            <p>Wind Speed</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="forecast">
+      <h3>5-Day Forecast</h3>
+      <div class="forecast-container" id="forecastContainer"></div>
+    </div>
+  </div>
+
+  <script>
+	const apikey = "24a3fa87e1f4f6ca4ccaac58cc716cdd";
+const apiurl = "https://api.openweathermap.org/data/2.5/weather?units=metric&q=";
+const forecastUrl = "https://api.openweathermap.org/data/2.5/forecast?units=metric&q=";
+
+const searchBox = document.querySelector(".search input");
+const searchBtn = document.querySelector(".search button");
+const weatherIcon = document.querySelector(".weather-icon");
+
+const weatherDiv = document.querySelector(".weather");
+const errorDiv = document.querySelector(".error");
+
+function displayWeather(data) {
+  document.querySelector(".city").innerHTML = data.name;
+  document.querySelector(".temp").innerHTML = Math.round(data.main.temp) + "°C";
+  document.querySelector(".humidity").innerHTML = data.main.humidity + "%";
+  document.querySelector(".wind").innerHTML = data.wind.speed + " km/h";
+
+  const main = data.weather[0].main;
+  const icons = {
+    Clouds: "clouds.png",
+    Clear: "clear.png",
+    Rain: "rain.png",
+    Drizzle: "drizzle.png",
+    Mist: "mist.png",
+    Snow: "snow.png"
+  };
+
+  weatherIcon.src = "images/" + (icons[main] || "clear.png");
+
+  weatherDiv.style.display = "block";
+  errorDiv.style.display = "none";
+}
+
+async function displayForecast(city) {
+  const res = await fetch(forecastUrl + city + `&appid=${apikey}`);
+  const data = await res.json();
+
+  const container = document.getElementById("forecastContainer");
+  container.innerHTML = "";
+
+  const daily = {};
+
+  for (let i = 0; i < data.list.length; i++) {
+    const item = data.list[i];
+    const date = item.dt_txt.split(" ")[0];
+    if (!daily[date]) daily[date] = item;
+  }
+
+  const days = Object.keys(daily).slice(1, 6);
+  for (const day of days) {
+    const item = daily[day];
+    const icon = item.weather[0].main.toLowerCase();
+    container.innerHTML += `
+      <div class="forecast-day">
+        <p>${new Date(day).toDateString().split(" ")[0]}</p>
+        <img src="images/${icon}.png" alt="${icon}" />
+        <p>${Math.round(item.main.temp)}°C</p>
+      </div>
+    `;
+  }
+}
+
+async function checkWeather(city) {
+  if (!city) {
+    alert("Please enter a city name.");
+    return;
+  }
+
+  const response = await fetch(apiurl + city + `&appid=${apikey}`);
+  if (response.status == 404) {
+    errorDiv.style.display = "block";
+    weatherDiv.style.display = "none";
+  } else {
+    const data = await response.json();
+    displayWeather(data);
+    displayForecast(city);
+  }
+}
+
+searchBtn.addEventListener("click", () => {
+  checkWeather(searchBox.value.trim());
+});
+searchBox.addEventListener("keyup", (e) => {
+  if (e.key === "Enter") checkWeather(searchBox.value.trim());
+});
+
+// Geolocation on load
+window.addEventListener("load", () => {
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      const lat = pos.coords.latitude;
+      const lon = pos.coords.longitude;
+      const res = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${apikey}`);
+      const data = await res.json();
+      displayWeather(data);
+      displayForecast(data.name);
+    });
+  }
+});
+
+// Theme toggle
+document.getElementById("themeToggle").addEventListener("click", () => {
+  document.body.classList.toggle("light");
+});
+
+  </script>
+</body>
+</html>
